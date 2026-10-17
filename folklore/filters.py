@@ -28,6 +28,16 @@ _LOW_SIGNAL = re.compile(
     r"nice( work| catch)?|great( work)?|approved?|ship it|same here|same as above|ditto)\W*$",
     re.IGNORECASE,
 )
+# A comment can only become a rule if it asks for something. Praise, apologies and
+# discussion ("makes sense to me", "sorry for the delay") are dropped.
+DIRECTIVE = re.compile(
+    r"\b(please|pls|should|shouldn'?t|must|mustn'?t|need to|needs to|have to|has to|"
+    r"use|using|don'?t|do not|never|always|avoid|prefer|instead|rather than|move|rename|remove|"
+    r"drop|add|replace|keep|make sure|can we|could we|can you|could you|would you|let'?s|"
+    r"we (usually|always|never|don'?t|do not|prefer|try to)|why not|consider|go(es)? (next to|in)|"
+    r"belongs?|lives? (in|next to)|nit)\b",
+    re.IGNORECASE,
+)
 _SUGGESTION = re.compile(r"```suggestion[^\n]*\n(.*?)```", re.DOTALL)
 _CODE_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 _QUOTE = re.compile(r"^\s*>.*$", re.MULTILINE)
@@ -52,6 +62,7 @@ class FilterResult:
             ("reply", "Replies inside a thread"),
             ("low_signal", "LGTM, thanks and similar"),
             ("too_short", "Too short to be a rule"),
+            ("not_actionable", "Discussion, praise or questions with no request"),
         ]
         return [
             {"key": key, "label": label, "count": self.dropped.get(key, 0)} for key, label in order
@@ -122,8 +133,11 @@ def classify(comment: ReviewComment, cfg: Config, inferred: set[str] | None = No
     text = clean_text(comment.body)
     if _LOW_SIGNAL.match(text) or (not text and not extract_suggestion(comment.body)):
         return "low_signal"
-    if len(text) < cfg.min_comment_chars and not extract_suggestion(comment.body):
+    has_suggestion = extract_suggestion(comment.body) is not None
+    if len(text) < cfg.min_comment_chars and not has_suggestion:
         return "too_short"
+    if not has_suggestion and not DIRECTIVE.search(text):
+        return "not_actionable"
     return None
 
 

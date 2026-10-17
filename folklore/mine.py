@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from .github import GitHubClient, pr_number_from_url
+from .github import GitHubClient, GitHubError, pr_number_from_url
 from .models import ReviewComment
 
 Progress = Callable[[str], None]
@@ -33,49 +33,55 @@ def mine(
     comments: list[ReviewComment] = []
     # Comments are listed newest first across the whole repo; cap the pages read so an old,
     # recently-touched PR cannot pull in years of unrelated history.
-    for raw in client.review_comments(repo, since=oldest, limit=max_prs * 40):
-        number = pr_number_from_url(raw.get("pull_request_url", ""))
-        if number not in pulls:
-            continue
-        user = raw.get("user") or {}
-        comments.append(
-            ReviewComment(
-                id=raw["id"],
-                pr_number=number,
-                body=raw.get("body") or "",
-                reviewer=user.get("login", ""),
-                reviewer_association=raw.get("author_association", "NONE"),
-                pr_author=authors.get(number, ""),
-                path=raw.get("path") or "",
-                diff_hunk=raw.get("diff_hunk") or "",
-                created_at=raw.get("created_at") or "",
-                url=raw.get("html_url") or "",
-                kind="inline",
-                in_reply_to_id=raw.get("in_reply_to_id"),
+    try:
+        for raw in client.review_comments(repo, since=oldest, limit=max_prs * 40):
+            number = pr_number_from_url(raw.get("pull_request_url", ""))
+            if number not in pulls:
+                continue
+            user = raw.get("user") or {}
+            comments.append(
+                ReviewComment(
+                    id=raw["id"],
+                    pr_number=number,
+                    body=raw.get("body") or "",
+                    reviewer=user.get("login", ""),
+                    reviewer_association=raw.get("author_association", "NONE"),
+                    pr_author=authors.get(number, ""),
+                    path=raw.get("path") or "",
+                    diff_hunk=raw.get("diff_hunk") or "",
+                    created_at=raw.get("created_at") or "",
+                    url=raw.get("html_url") or "",
+                    kind="inline",
+                    in_reply_to_id=raw.get("in_reply_to_id"),
+                )
             )
-        )
+    except GitHubError as exc:
+        say(f"Stopped reading inline comments early, keeping {len(comments)}: {exc}")
 
     if include_review_bodies:
         say(f"Reading review summaries for {len(pulls)} pull requests")
-        for number in pulls:
-            for review in client.reviews(repo, number):
-                body = (review.get("body") or "").strip()
-                if not body:
-                    continue
-                user = review.get("user") or {}
-                comments.append(
-                    ReviewComment(
-                        id=review["id"],
-                        pr_number=number,
-                        body=body,
-                        reviewer=user.get("login", ""),
-                        reviewer_association=review.get("author_association", "NONE"),
-                        pr_author=authors.get(number, ""),
-                        created_at=review.get("submitted_at") or "",
-                        url=review.get("html_url") or "",
-                        kind="review",
+        try:
+            for number in pulls:
+                for review in client.reviews(repo, number):
+                    body = (review.get("body") or "").strip()
+                    if not body:
+                        continue
+                    user = review.get("user") or {}
+                    comments.append(
+                        ReviewComment(
+                            id=review["id"],
+                            pr_number=number,
+                            body=body,
+                            reviewer=user.get("login", ""),
+                            reviewer_association=review.get("author_association", "NONE"),
+                            pr_author=authors.get(number, ""),
+                            created_at=review.get("submitted_at") or "",
+                            url=review.get("html_url") or "",
+                            kind="review",
+                        )
                     )
-                )
+        except GitHubError as exc:
+            say(f"Stopped reading review summaries early: {exc}")
 
     say(f"Collected {len(comments)} pieces of review feedback")
     return comments

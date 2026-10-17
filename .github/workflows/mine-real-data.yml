@@ -3,6 +3,8 @@
 name: Mine real data
 
 on:
+  schedule:
+    - cron: "23 2 * * 1"  # every Monday: refresh the live site's data
   workflow_dispatch:
     inputs:
       repos:
@@ -25,23 +27,33 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install .
+      - name: Fetch earlier data
+        run: |
+          git clone --depth 1 --branch data "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" /tmp/out \
+            || (mkdir -p /tmp/out && git -C /tmp/out init -q -b data)
+          mkdir -p /tmp/out/mined /tmp/out/logs
       - name: Mine
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p /tmp/out/mined
-          for repo in ${{ inputs.repos }}; do
-            file="/tmp/out/mined/${repo/\//__}.jsonl"
-            folklore mine --repo "$repo" --max-prs "${{ inputs.max_prs }}" --out "$file" || echo "failed: $repo"
+          for repo in ${{ inputs.repos || 'home-assistant/core' }}; do
+            name="${repo/\//__}"
+            if folklore mine --repo "$repo" --max-prs "${{ inputs.max_prs || '400' }}" \
+                 --out "/tmp/out/mined/$name.jsonl.new" > "/tmp/out/logs/$name.log" 2>&1; then
+              mv "/tmp/out/mined/$name.jsonl.new" "/tmp/out/mined/$name.jsonl"
+            else
+              echo "Mining $repo failed; see logs/$name.log" | tee -a "/tmp/out/logs/$name.log"
+              rm -f "/tmp/out/mined/$name.jsonl.new"
+            fi
           done
+          GH_TOKEN="$GITHUB_TOKEN" gh api rate_limit --jq '.resources.core' > /tmp/out/logs/rate_limit.json || true
           ls -la /tmp/out/mined
       - name: Store on the data branch
         run: |
           cd /tmp/out
-          git init -q -b data
           git config user.name "folklore-bot"
           git config user.email "folklore-bot@users.noreply.github.com"
-          printf "Raw review feedback mined from public pull requests on %s.\n" "$(date -u +%F)" > README.md
+          printf "Raw review feedback mined from public pull requests. Updated %s.\n" "$(date -u +%F)" > README.md
           git add -A
-          git commit -q -m "Mined review data $(date -u +%F)"
-          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" data
+          git commit -q -m "Mined review data $(date -u +%F)" || echo "No changes"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" HEAD:data

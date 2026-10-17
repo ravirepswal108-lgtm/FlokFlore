@@ -65,3 +65,12 @@ def test_frequent_reviewers_count_as_maintainers():
     assert {c.reviewer for c in result.kept} == {"core-dev"}
     assert result.inferred_maintainers == ["core-dev"]
     assert not filter_comments(comments, Config(frequent_reviewer_prs=0)).kept
+
+
+def test_drops_feedback_that_asks_for_nothing():
+    for body in (
+        "Sorry for the delayed review, this makes sense to me now.",
+        "With the ParamSpec stuff this looks much more straightforward.",
+    ):
+        assert reason(body=body) == "not_actionable", body
+    assert reason(body="Tests go next to the file they test, not in the tests folder.") is None

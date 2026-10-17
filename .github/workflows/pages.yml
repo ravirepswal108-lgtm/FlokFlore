@@ -1,10 +1,14 @@
-# Builds the live demo dashboard and publishes it with GitHub Pages.
-# Live at https://ravirepswal108-lgtm.github.io/FlokFlore/
-name: Live demo
+# Publishes the live dashboard with GitHub Pages: https://ravirepswal108-lgtm.github.io/FlokFlore/
+# Every build uses the real review history of LIVE_REPO, mined weekly by mine-real-data.yml. Nothing on the site is
+# invented: every rule links to the pull-request reviews it came from.
+name: Live site
 
 on:
   push:
     branches: [main]
+  workflow_run:  # rebuild after fresh review data is mined
+    workflows: [Mine real data]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,9 +20,14 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  LIVE_REPO: home-assistant/core
+  MAX_PRS: "400"
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,12 +35,23 @@ jobs:
           python-version: "3.12"
       - name: Install Folklore
         run: python -m pip install .
-      - name: Build the demo dashboard
+      - name: Get the latest mined review history
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          folklore demo --out demo
-          mkdir -p site
-          cp demo/report.html site/index.html
-          cp -r demo/skills site/skills
+          name="${LIVE_REPO/\//__}"
+          if git clone -q --depth 1 --branch data "https://github.com/${{ github.repository }}" /tmp/data \
+             && [ -s "/tmp/data/mined/$name.jsonl" ]; then
+            cp "/tmp/data/mined/$name.jsonl" comments.jsonl
+          else
+            folklore mine --repo "$LIVE_REPO" --max-prs "$MAX_PRS" --out comments.jsonl
+          fi
+          wc -l comments.jsonl
+      - name: Analyze and build the dashboard
+        run: |
+          folklore run --repo "$LIVE_REPO" --comments comments.jsonl \
+            --report site/index.html --skills-dir site/skills
+          cp .folklore/analysis.json site/analysis.json
           touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

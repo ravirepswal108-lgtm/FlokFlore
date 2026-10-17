@@ -17,7 +17,7 @@ from collections import Counter
 import numpy as np
 
 from .config import Config
-from .filters import clean_text, extract_suggestion
+from .filters import DIRECTIVE, clean_text, extract_suggestion
 from .llm import LLMError, OpenAICompatClient
 from .models import Cluster, Example, ReviewComment, Rule, Source
 from .sanitize import looks_like_injection, sanitize_code, sanitize_text
@@ -47,6 +47,7 @@ _EXPLAINS = re.compile(
 _NORM = re.compile(
     r"\b(should|must|need to|needs to|have to|has to|go|goes|belong|belongs|live|lives)\b"
 )
+_REQUEST_QUESTION = re.compile(r"^(could|can|would|will) (you|we)\b|^why not\b", re.IGNORECASE)
 _FILENAME = re.compile(r"\b[\w-]+\.(tsx?|jsx?|py|go|rs|rb|java|kt|swift|cs|cpp|vue|svelte)\b")
 IMPERATIVE_VERBS = {
     "use",
@@ -259,7 +260,8 @@ def seen_in(members: list[ReviewComment], limit: int = 3) -> list[str]:
 
 _PRAISE = re.compile(
     r"^(thanks?|thank you|lgtm|looks (good|great|close|nice)|nice|great|good (job|work)|"
-    r"interesting|almost there|close)\b",
+    r"interesting|almost there|close|sorry|this makes sense|makes sense|agreed?|i see|"
+    r"good (point|catch)|oh|ah|hmm|haha|with the .{0,40} this looks)\b",
     re.IGNORECASE,
 )
 
@@ -270,8 +272,12 @@ def heuristic_title(members: list[ReviewComment], keywords: list[str] | None = N
     best, best_score = "", -1.0
     for rank, comment in enumerate(members[:8]):
         for sentence in split_sentences(clean_text(comment.body))[:3]:
-            if _PRAISE.match(sentence.strip()):
+            if _PRAISE.match(sentence.strip()) or not DIRECTIVE.search(sentence):
                 continue
+            if sentence.rstrip().endswith("?") and not _REQUEST_QUESTION.match(
+                _LEAD_INS.sub("", sentence.strip())
+            ):
+                continue  # "Should this be ...?" is a question about one PR, not a rule
             title = sanitize_text(imperative(sentence), limit=110)
             if len(title) < 12 or title.lower().startswith(("why ", "what ", "how ", "is ")):
                 continue
