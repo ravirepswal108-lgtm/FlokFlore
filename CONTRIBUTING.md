@@ -5,8 +5,8 @@ Thanks for helping. Folklore is small and friendly to first-time contributors.
 ## Set up
 
 ```bash
-git clone https://github.com/ravirepswal108-lgtm/Folklore
-cd Folklore
+git clone https://github.com/ravirepswal108-lgtm/FlokFlore
+cd FlokFlore
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 python -m playwright install chromium   # for the dashboard tests (optional; they skip without it)

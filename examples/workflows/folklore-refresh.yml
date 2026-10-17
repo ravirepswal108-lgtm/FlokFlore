@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Folklore
-        run: python -m pip install --quiet "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/Folklore@v0"
+        run: python -m pip install --quiet "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/FlokFlore@v0"
 
       - name: Mine, analyze and publish
         env:

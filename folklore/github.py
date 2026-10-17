@@ -10,7 +10,7 @@ from typing import Any
 import requests
 
 API = "https://api.github.com"
-USER_AGENT = "folklore-skills/0.1 (+https://github.com/ravirepswal108-lgtm/Folklore)"
+USER_AGENT = "folklore-skills/0.1 (+https://github.com/ravirepswal108-lgtm/FlokFlore)"
 
 
 class GitHubError(RuntimeError):

@@ -33,8 +33,8 @@ dev = ["pytest>=8", "ruff>=0.5", "playwright>=1.40"]
 folklore = "folklore.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ravirepswal108-lgtm/Folklore"
-Issues = "https://github.com/ravirepswal108-lgtm/Folklore/issues"
+Homepage = "https://github.com/ravirepswal108-lgtm/FlokFlore"
+Issues = "https://github.com/ravirepswal108-lgtm/FlokFlore/issues"
 
 [tool.setuptools.packages.find]
 include = ["folklore*"]

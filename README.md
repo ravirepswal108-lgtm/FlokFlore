@@ -10,6 +10,12 @@ that review history, finds the feedback maintainers keep repeating, and writes i
 standard [Agent Skill](https://agentskills.io/specification), with evidence and sources
 for every rule. A maintainer approves it before it becomes anything official.
 
+**[Open the live demo →](https://ravirepswal108-lgtm.github.io/FlokFlore/)** The review
+dashboard for a fictional repository, built from this code on every push.
+
+[![CI](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/ci.yml/badge.svg)](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/ci.yml)
+[![Live demo](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/pages.yml/badge.svg)](https://ravirepswal108-lgtm.github.io/FlokFlore/)
+
 ![The Folklore report for the bundled demo repository](docs/report-preview.png)
 
 ## Try it in one minute
@@ -17,7 +23,7 @@ for every rule. A maintainer approves it before it becomes anything official.
 No GitHub token or AI service needed. The demo runs on a bundled, fictional review history.
 
 ```bash
-pip install "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/Folklore"
+pip install "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/FlokFlore"
 folklore demo
 ```
 
