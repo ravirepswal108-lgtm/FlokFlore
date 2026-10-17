@@ -5,10 +5,11 @@ Thanks for helping. Folklore is small and friendly to first-time contributors.
 ## Set up
 
 ```bash
-git clone https://github.com/your-org/folklore
-cd folklore
+git clone https://github.com/ravirepswal108-lgtm/Folklore
+cd Folklore
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+python -m playwright install chromium   # for the dashboard tests (optional; they skip without it)
 pytest -q
 folklore demo
 ```
@@ -33,7 +34,7 @@ Folklore; the bundled demo data and the tests cover the whole pipeline.
 | `folklore/distill.py`, `folklore/llm.py` | Phrase rules, pick examples, detection patterns |
 | `folklore/sanitize.py` | Keep untrusted text out of agent instructions |
 | `folklore/publish.py` | Write and validate the Agent Skill |
-| `folklore/report.py` | The HTML report |
+| `folklore/report.py` | The review dashboard (HTML, CSS and JS in one file) |
 | `folklore/enforce.py` | Pre-review hints for PRs |
 | `scripts/make_demo_data.py` | The demo dataset (edit this, then re-run it) |
 

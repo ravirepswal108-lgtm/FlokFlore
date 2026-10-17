@@ -173,6 +173,7 @@ def cmd_demo(args) -> int:
         comments = load_comments(path)
     cfg = Config.load(args.config) if Path(args.config).exists() else Config()
     analysis = analyze(comments, cfg, now=_now("2026-10-15"), repo="example-org/widgetkit")
+    analysis["demo"] = True  # fictional repository: the report shows PR numbers, not links
     save_analysis(analysis, out / "analysis.json")
     report = write_report(analysis, out / "report.html")
     skill_dir = publish(
@@ -205,23 +206,25 @@ def cmd_validate(args) -> int:
 
 def cmd_reject(args) -> int:
     path = Path(args.config)
-    text = path.read_text(encoding="utf-8") if path.exists() else ""
     cfg = Config.load(path)
-    if args.rule_id in cfg.rejected_rules:
-        say(f"{args.rule_id} is already rejected")
+    new_ids = [r for r in dict.fromkeys(args.rule_ids) if r not in cfg.rejected_rules]
+    for rule_id in args.rule_ids:
+        if rule_id not in new_ids:
+            say(f"{rule_id} is already rejected")
+    if not new_ids:
         return 0
-    entry = f"  - {args.rule_id}"
-    lines = text.splitlines()
+    lines = (path.read_text(encoding="utf-8") if path.exists() else "").splitlines()
+    entries = [f"  - {rule_id}" for rule_id in new_ids]
     for i, line in enumerate(lines):
         if line.startswith("rejected_rules:"):
             if line.strip().endswith("[]"):
                 lines[i] = "rejected_rules:"
-            lines.insert(i + 1, entry)
+            lines[i + 1 : i + 1] = entries
             break
     else:
-        lines += ["", "rejected_rules:", entry]
+        lines += ["", "rejected_rules:", *entries]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    say(f"Rejected {args.rule_id}. It will not be proposed again; re-run `folklore analyze`.")
+    say(f"Rejected {', '.join(new_ids)}. Re-run `folklore analyze` to rebuild without them.")
     return 0
 
 
@@ -365,8 +368,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("skill_dir")
     p.set_defaults(func=cmd_validate)
 
-    p = sub.add_parser("reject", help="mark a proposed rule as not a real convention")
-    p.add_argument("rule_id")
+    p = sub.add_parser("reject", help="mark proposed rules as not real conventions")
+    p.add_argument("rule_ids", nargs="+", metavar="rule_id")
     p.set_defaults(func=cmd_reject)
 
     p = sub.add_parser("check-diff", help="check a local diff against the rules")

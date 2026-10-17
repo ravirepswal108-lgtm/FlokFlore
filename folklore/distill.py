@@ -193,6 +193,14 @@ def derive_detect(bad_lines: list[str], good_lines: list[str], review_text: str 
     return None
 
 
+def first_match(pattern: str | None, lines: list[str]) -> str:
+    """A real flagged line the detection pattern catches (used to demo the checker)."""
+    if not pattern:
+        return ""
+    rx = re.compile(pattern)
+    return next((ln.strip() for ln in lines if ln.strip() and rx.search(ln)), "")
+
+
 def rank_members(members: list[ReviewComment], vectors: np.ndarray) -> list[ReviewComment]:
     """Members ordered by closeness to the cluster centre (most typical first)."""
     centre = vectors.mean(axis=0)
@@ -331,6 +339,7 @@ class HeuristicDistiller:
             sources=_sources(members),
             examples=examples,
             detect=detect,
+            detect_sample=first_match(detect, bad_lines),
             seen_in=seen_in(members),
             confidence=confidence(cluster),
             single_reviewer=cluster.evidence.reviewers == 1,
@@ -424,6 +433,7 @@ class LLMDistiller:
         detect = validate_detect(str(reply.get("detect_regex") or ""), bad_lines, good_lines)
         if not detect and base:
             detect = base.detect
+        sample_lines = bad_lines + ([base.detect_sample] if base and base.detect_sample else [])
 
         title = title or (base.title if base else "")
         try:
@@ -440,6 +450,7 @@ class LLMDistiller:
             sources=_sources(members),
             examples=examples,
             detect=detect,
+            detect_sample=first_match(detect, sample_lines),
             confidence=round(
                 min(0.95, (confidence(cluster) + max(0.0, min(1.0, model_conf))) / 2), 2
             ),

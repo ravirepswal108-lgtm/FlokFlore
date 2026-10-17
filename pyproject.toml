@@ -27,14 +27,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8", "ruff>=0.5", "playwright>=1.40"]
 
 [project.scripts]
 folklore = "folklore.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/folklore"
-Issues = "https://github.com/your-org/folklore/issues"
+Homepage = "https://github.com/ravirepswal108-lgtm/Folklore"
+Issues = "https://github.com/ravirepswal108-lgtm/Folklore/issues"
 
 [tool.setuptools.packages.find]
 include = ["folklore*"]

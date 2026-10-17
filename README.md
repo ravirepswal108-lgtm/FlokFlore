@@ -17,11 +17,27 @@ for every rule. A maintainer approves it before it becomes anything official.
 No GitHub token or AI service needed. The demo runs on a bundled, fictional review history.
 
 ```bash
-pip install "folklore-skills @ git+https://github.com/your-org/folklore"
+pip install "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/Folklore"
 folklore demo
 ```
 
-Open `folklore-demo/report.html`, and look at `folklore-demo/skills/widgetkit-folklore/`.
+Open `folklore-demo/report.html` in your browser, and look at
+`folklore-demo/skills/widgetkit-folklore/`.
+
+## The review dashboard
+
+Every run writes `.folklore/report.html`: one self-contained file that works offline.
+
+| Section | What you can do |
+|---|---|
+| **Overview** | See how much review feedback was read, what each filter removed, and rules per area. |
+| **Rules** | Search, filter by area, decision or auto-checkable, and sort. Open a rule for its evidence, real before/after code and source reviews. **Approve** or **Reject** each one. |
+| **Your review** | Decisions are saved in your browser and turned into the exact command to run, for example `folklore reject <ids> && folklore analyze && folklore publish`. |
+| **Set aside** | Recurring feedback that did not become a rule (stale, one contributor, too broad) and why. |
+| **Check a diff** | Paste `git diff` output and see which conventions it breaks. Same logic as the PR bot, run in the browser. |
+| **Skill file** | Read and copy the generated `SKILL.md`, reference files and `rules.json`, validated against the spec. |
+
+The palette has no blue anywhere, and it follows your system's light or dark mode.
 
 ## Use it on a real repository
 

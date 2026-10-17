@@ -120,6 +120,7 @@ class Rule:
     sources: list[Source]
     examples: list[Example] = field(default_factory=list)
     detect: str | None = None  # regex for added lines, when the rule is mechanically checkable
+    detect_sample: str = ""  # a real flagged line the pattern catches
     confidence: float = 0.5
     single_reviewer: bool = False
     keywords: list[str] = field(default_factory=list)
