@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from importlib import resources
+from pathlib import Path
 
 import pytest
 
@@ -12,14 +12,14 @@ NOW = datetime(2026, 10, 15, tzinfo=timezone.utc)
 
 
 @pytest.fixture(scope="session")
-def demo_comments():
-    with resources.as_file(resources.files("folklore").joinpath("data/demo_comments.jsonl")) as p:
-        return load_comments(p)
+def fixture_comments():
+    # Synthetic test fixture with known answers (see fixtures/make_synthetic_comments.py).
+    return load_comments(Path(__file__).parent / "fixtures" / "synthetic_comments.jsonl")
 
 
 @pytest.fixture(scope="session")
-def demo_analysis(demo_comments):
-    return analyze(demo_comments, Config(), now=NOW, repo="example-org/widgetkit")
+def fixture_analysis(fixture_comments):
+    return analyze(fixture_comments, Config(), now=NOW, repo="example-org/widgetkit")
 
 
 def make_comment(**kw) -> ReviewComment:

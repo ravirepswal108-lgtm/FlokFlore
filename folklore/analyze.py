@@ -113,6 +113,7 @@ def analyze(
             "feedback_kept": len(kept),
             "pull_requests": len({c.pr_number for c in comments}),
             "maintainers": len({c.reviewer for c in kept}),
+            "maintainers_inferred": len(filtered.inferred_maintainers),
             "clusters": len(clusters),
             "rules": len(rules),
             "stale": sum(1 for c in clusters if c.status == "stale"),

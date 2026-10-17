@@ -11,11 +11,16 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -e ".[dev]"
 python -m playwright install chromium   # for the dashboard tests (optional; they skip without it)
 pytest -q
-folklore demo
 ```
 
-Everything runs offline. You do not need a GitHub token or an AI service to work on
-Folklore; the bundled demo data and the tests cover the whole pipeline.
+The tests run offline on a synthetic fixture with known answers
+(`tests/fixtures/synthetic_comments.jsonl`), so you don't need a token to work on Folklore.
+To see real results, run it on a real repository:
+
+```bash
+export GITHUB_TOKEN=ghp_...   # read access to public repos is enough
+folklore run --repo owner/name --no-publish
+```
 
 ## Find something to work on
 
@@ -36,13 +41,13 @@ Folklore; the bundled demo data and the tests cover the whole pipeline.
 | `folklore/publish.py` | Write and validate the Agent Skill |
 | `folklore/report.py` | The review dashboard (HTML, CSS and JS in one file) |
 | `folklore/enforce.py` | Pre-review hints for PRs |
-| `scripts/make_demo_data.py` | The demo dataset (edit this, then re-run it) |
+| `tests/fixtures/make_synthetic_comments.py` | The synthetic test fixture (edit, then re-run it) |
 
 ## Pull request checklist
 
 - `ruff check .` and `ruff format .` pass.
 - `pytest -q` passes, and new behaviour has a test.
-- If you changed the pipeline, run `folklore demo` and look at the report.
+- If you changed the pipeline, run it on a real repository and look at the report.
 - Keep PRs focused: one change per PR is easier to review.
 
 ## House rules (yes, Folklore has its own folklore)

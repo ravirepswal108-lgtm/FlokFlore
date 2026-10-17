@@ -1,11 +1,11 @@
-"""Generate the bundled demo dataset (a fictional repo, example-org/widgetkit).
+"""TEST FIXTURE ONLY. Generates synthetic review comments for the unit tests.
 
-The data is synthetic but shaped like real GitHub review history: recurring maintainer
-feedback, plus the noise Folklore has to throw away (bots, LGTMs, replies, contributor
-chatter, one-off remarks, a stale convention, one person's repeated mistake, and a
-prompt-injection attempt hidden in a diff).
+This data is invented on purpose and is never shown to users. Tests need a controlled
+dataset with known answers: planted conventions, every kind of noise Folklore must drop,
+a stale convention, one contributor's repeated mistake, and a prompt-injection attack
+hidden in a diff. Real results come from `folklore run --repo owner/name`.
 
-Run:  python scripts/make_demo_data.py
+Run:  python tests/fixtures/make_synthetic_comments.py
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 REPO = "example-org/widgetkit"
-OUT = Path(__file__).resolve().parents[1] / "folklore" / "data" / "demo_comments.jsonl"
+OUT = Path(__file__).resolve().parent / "synthetic_comments.jsonl"
 
 MAINTAINERS = {"maya-k": "OWNER", "devon-r": "MEMBER", "lin-chen": "COLLABORATOR"}
 CONTRIBUTORS = itertools.cycle(

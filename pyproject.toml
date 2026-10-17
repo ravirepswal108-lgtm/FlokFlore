@@ -40,7 +40,7 @@ Issues = "https://github.com/ravirepswal108-lgtm/FlokFlore/issues"
 include = ["folklore*"]
 
 [tool.setuptools.package-data]
-folklore = ["data/*.jsonl", "templates/*"]
+folklore = ["templates/*"]
 
 [tool.ruff]
 line-length = 100

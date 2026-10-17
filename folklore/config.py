@@ -23,6 +23,7 @@ filter:
   # Whose feedback counts as project folklore (GitHub author_association values).
   maintainer_associations: [OWNER, MEMBER, COLLABORATOR]
   include_reviewers: []       # extra logins to treat as maintainers
+  frequent_reviewer_prs: 3    # also count anyone reviewing this many PRs by others (0 = off)
   exclude_reviewers: []       # logins to ignore entirely
   min_comment_chars: 30
 
@@ -86,6 +87,7 @@ class Config:
         default_factory=lambda: ["OWNER", "MEMBER", "COLLABORATOR"]
     )
     include_reviewers: list[str] = field(default_factory=list)
+    frequent_reviewer_prs: int = 3
     exclude_reviewers: list[str] = field(default_factory=list)
     min_comment_chars: int = 30
     # cluster
@@ -121,6 +123,7 @@ class Config:
             "filter": [
                 "maintainer_associations",
                 "include_reviewers",
+                "frequent_reviewer_prs",
                 "exclude_reviewers",
                 "min_comment_chars",
             ],

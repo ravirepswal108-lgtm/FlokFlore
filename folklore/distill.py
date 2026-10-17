@@ -194,7 +194,7 @@ def derive_detect(bad_lines: list[str], good_lines: list[str], review_text: str 
 
 
 def first_match(pattern: str | None, lines: list[str]) -> str:
-    """A real flagged line the detection pattern catches (used to demo the checker)."""
+    """A real flagged line the detection pattern catches (shown in the diff checker's example)."""
     if not pattern:
         return ""
     rx = re.compile(pattern)

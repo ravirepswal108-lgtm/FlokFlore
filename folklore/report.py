@@ -121,7 +121,7 @@ code, pre, .mono { font-family: var(--font-mono); }
 .panel-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 20px; }
 .panel-head h1 { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 600; text-wrap: balance; }
 .panel-head p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
-.demo-banner { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+.notice { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); min-width: 0; }
 .card-pad { padding: 18px 20px; }
@@ -391,7 +391,7 @@ SCRIPT = r"""
   function sourceLinks(r) {
     return (r.sources || []).slice(0, 10).map(function (s) {
       var label = '#' + s.pr_number;
-      if (data.demo || !s.url) return '<span title="' + (data.demo ? 'Demo data: fictional pull request' : '') + '">' + esc(label) + '</span>';
+      if (!s.url) return '<span>' + esc(label) + '</span>';
       return '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>';
     }).join('');
   }
@@ -779,19 +779,11 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
     payload = {
         "repo": repo,
         "generated_at": analysis.get("generated_at", ""),
-        "demo": bool(analysis.get("demo")),
         "rules": rules,
         "skill": skill,
         "sample_diff": sample_diff(analysis),
     }
 
-    demo_banner = (
-        '<p class="demo-banner">Demo data: <b>example-org/widgetkit</b> is a fictional '
-        "repository, so its pull-request numbers are not links. Run "
-        "<code>folklore run --repo owner/name</code> to analyse a real one.</p>"
-        if analysis.get("demo")
-        else ""
-    )
     tab_list = [
         ("overview", "Overview", ""),
         ("rules", "Rules", str(len(rules))),
@@ -817,7 +809,6 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
     <p>Conventions maintainers repeated in pull-request reviews. Approve the real ones,
     reject the rest, and publish them as an Agent Skill for contributors and their coding agents.</p></div>
     <button type="button" class="btn primary" data-goto="rules">Review {_plural(len(rules), "rule")}</button></div>
-  {demo_banner}
   <div class="grid">
     <div class="kpis">
       <div class="card kpi"><span class="label">Feedback read</span><span class="value">{stats["feedback_total"]}</span><span class="sub">from {_plural(stats["pull_requests"], "pull request")}</span></div>
@@ -933,7 +924,7 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
       <span>Quoted code is shown as data. No contributor names are included.</span></div>
   </aside>
   <main class="main">
-    <noscript><p class="demo-banner">This dashboard needs JavaScript for filtering, decisions and the diff checker.</p></noscript>
+    <noscript><p class="notice">This dashboard needs JavaScript for filtering, decisions and the diff checker.</p></noscript>
     {overview}{rules_panel}{aside_panel}{check_panel}{skill_panel}
   </main>
 </div>

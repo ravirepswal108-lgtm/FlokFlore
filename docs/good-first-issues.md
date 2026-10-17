@@ -17,11 +17,12 @@ GitHub issues labelled `good first issue` (or `help wanted` for the larger ones)
    `folklore check-diff` on staged changes.
 6. **Report: copy a rule as Markdown.** Add a button in `report.py` that copies one rule
    as a Markdown snippet for issues and chats.
-7. **Report: sort control.** Let maintainers sort rules by evidence, recency or confidence.
+7. **Report: keyboard shortcuts.** Add `/` to focus search and `a` / `r` to approve or
+   reject the focused rule in the dashboard, with a browser test.
 8. **More injection patterns.** Add attack phrasings to `sanitize.py` with tests that
    prove ordinary code comments are not removed.
-9. **Demo data: a Python project.** Add a second fictional repository to
-   `scripts/make_demo_data.py` with Python review conventions.
+9. **Test fixture: a Python project.** Extend `tests/fixtures/make_synthetic_comments.py`
+   with Python review conventions and add tests that expect them.
 10. **Docs: a Windows quick start** in the README.
 
 ## Help wanted (bigger)

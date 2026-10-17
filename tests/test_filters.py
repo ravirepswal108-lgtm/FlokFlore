@@ -47,3 +47,21 @@ def test_suggestion_and_clean_text():
     body = "Use the logger @maya, see https://x.y/z\n> quoted\n```suggestion\nlogger.debug(a)\n```"
     assert extract_suggestion(body) == "logger.debug(a)"
     assert clean_text(body) == "Use the logger , see"
+
+
+def test_frequent_reviewers_count_as_maintainers():
+    # Private org members show up as CONTRIBUTOR; reviewing others' PRs reveals them.
+    comments = [
+        make_comment(
+            id=i,
+            pr_number=i,
+            reviewer="core-dev",
+            reviewer_association="CONTRIBUTOR",
+            pr_author=f"author{i}",
+        )
+        for i in range(1, 4)
+    ] + [make_comment(id=9, pr_number=9, reviewer="drive-by", reviewer_association="CONTRIBUTOR")]
+    result = filter_comments(comments, Config())
+    assert {c.reviewer for c in result.kept} == {"core-dev"}
+    assert result.inferred_maintainers == ["core-dev"]
+    assert not filter_comments(comments, Config(frequent_reviewer_prs=0)).kept

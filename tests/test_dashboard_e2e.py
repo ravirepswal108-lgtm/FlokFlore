@@ -28,9 +28,9 @@ def browser():
 
 
 @pytest.fixture()
-def page(browser, demo_analysis, tmp_path):
-    analysis = dict(demo_analysis, demo=True)
-    analysis["rules"] = [dict(r) for r in demo_analysis["rules"]]
+def page(browser, fixture_analysis, tmp_path):
+    analysis = dict(fixture_analysis)
+    analysis["rules"] = [dict(r) for r in fixture_analysis["rules"]]
     analysis["rules"][0]["title"] = '<img src=x onerror="window.pwned=1"> Don\'t use lodash.'
     path = write_report(analysis, tmp_path / "report.html")
     context = browser.new_context()
@@ -124,12 +124,12 @@ def test_expand_shows_evidence(page):
     assert page.locator(".rule-detail").count() == 0
 
 
-def test_diff_checker_matches_python(page, demo_analysis):
+def test_diff_checker_matches_python(page, fixture_analysis):
     page.click("#tab-check")
-    diff = sample_diff(demo_analysis)
+    diff = sample_diff(fixture_analysis)
     py = {
         h.rule.id
-        for h in check(rules_from_analysis(demo_analysis), parse_unified_diff(diff), Config())
+        for h in check(rules_from_analysis(fixture_analysis), parse_unified_diff(diff), Config())
     }
     js = page.evaluate("(d) => window.folklore.checkDiff(d).hints.map(h => h.rule.id)", diff)
     assert set(js) == py and py
@@ -173,8 +173,8 @@ def test_skill_files_and_copy(page):
     )
 
 
-def test_phone_layout_has_no_sideways_scroll(browser, demo_analysis, tmp_path):
-    path = write_report(dict(demo_analysis, demo=True), tmp_path / "r.html")
+def test_phone_layout_has_no_sideways_scroll(browser, fixture_analysis, tmp_path):
+    path = write_report(dict(fixture_analysis), tmp_path / "r.html")
     pg = browser.new_page(viewport={"width": 390, "height": 844})
     pg.route("**/fonts.googleapis.com/**", lambda r: r.abort())
     for tab in ("overview", "rules", "aside", "check", "skill"):

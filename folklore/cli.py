@@ -6,7 +6,6 @@ import argparse
 import os
 import sys
 from datetime import datetime, timezone
-from importlib import resources
 from pathlib import Path
 
 from . import __version__
@@ -163,35 +162,6 @@ def cmd_run(args) -> int:
     if args.no_publish:
         return 0
     return _publish(analysis, args.skills_dir, args.agents_md)
-
-
-def cmd_demo(args) -> int:
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    data = resources.files("folklore").joinpath("data/demo_comments.jsonl")
-    with resources.as_file(data) as path:
-        comments = load_comments(path)
-    cfg = Config.load(args.config) if Path(args.config).exists() else Config()
-    analysis = analyze(comments, cfg, now=_now("2026-10-15"), repo="example-org/widgetkit")
-    analysis["demo"] = True  # fictional repository: the report shows PR numbers, not links
-    save_analysis(analysis, out / "analysis.json")
-    report = write_report(analysis, out / "report.html")
-    skill_dir = publish(
-        rules_from_analysis(analysis),
-        "example-org/widgetkit",
-        out / "skills",
-        analysis["generated_at"],
-    )
-    problems = validate_skill(skill_dir)
-    _summary(analysis)
-    say(f"Report: {report}")
-    say(
-        f"Skill:  {skill_dir}/SKILL.md ({'valid' if not problems else 'INVALID: ' + '; '.join(problems)})"
-    )
-    say(
-        "This demo uses a fictional repository; run `folklore run --repo owner/name` on a real one."
-    )
-    return 0 if not problems else 1
 
 
 def cmd_validate(args) -> int:
@@ -359,10 +329,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-publish", action="store_true", help="stop after the report")
     p.add_argument("--now", help=argparse.SUPPRESS)
     p.set_defaults(func=cmd_run)
-
-    p = sub.add_parser("demo", help="run everything on the bundled example data (no token needed)")
-    p.add_argument("--out", default="folklore-demo")
-    p.set_defaults(func=cmd_demo)
 
     p = sub.add_parser("validate", help="check a skill directory against the Agent Skills spec")
     p.add_argument("skill_dir")

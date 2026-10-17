@@ -25,5 +25,8 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -q
-      - name: Demo runs end to end
-        run: folklore demo --out demo && folklore validate demo/skills/widgetkit-folklore
+      - name: Pipeline runs end to end on the test fixture
+        run: |
+          folklore run --comments tests/fixtures/synthetic_comments.jsonl --repo test/fixture \
+            --now 2026-10-15 --skills-dir out/skills --report out/report.html
+          folklore validate out/skills/fixture-folklore

@@ -39,6 +39,7 @@ _HTML = re.compile(r"<[^>]+>")
 @dataclass
 class FilterResult:
     kept: list[ReviewComment] = field(default_factory=list)
+    inferred_maintainers: list[str] = field(default_factory=list)
     dropped: Counter = field(default_factory=Counter)
     total: int = 0
 
@@ -82,7 +83,25 @@ def clean_text(body: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def classify(comment: ReviewComment, cfg: Config) -> str | None:
+def frequent_reviewers(comments: list[ReviewComment], min_prs: int) -> set[str]:
+    """Reviewers who gave feedback on at least `min_prs` pull requests opened by other people.
+
+    GitHub labels organisation members whose membership is private as CONTRIBUTOR, so
+    `author_association` alone misses many real maintainers. Someone who keeps reviewing
+    other people's pull requests is acting as a maintainer whatever the label says.
+    """
+    prs: dict[str, set[int]] = {}
+    for c in comments:
+        reviewer = (c.reviewer or "").lower()
+        if not reviewer or is_bot(reviewer) or reviewer == (c.pr_author or "").lower():
+            continue
+        if c.reviewer_association.upper() in ("NONE", "FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER"):
+            continue
+        prs.setdefault(reviewer, set()).add(c.pr_number)
+    return {r for r, numbers in prs.items() if len(numbers) >= min_prs}
+
+
+def classify(comment: ReviewComment, cfg: Config, inferred: set[str] | None = None) -> str | None:
     """Return the reason a comment is dropped, or None to keep it."""
     reviewer = (comment.reviewer or "").lower()
     excluded = {r.lower() for r in cfg.exclude_reviewers}
@@ -90,7 +109,9 @@ def classify(comment: ReviewComment, cfg: Config) -> str | None:
     if is_bot(reviewer) or reviewer in excluded:
         return "bot"
     is_maintainer = (
-        comment.reviewer_association.upper() in cfg.maintainer_associations or reviewer in included
+        comment.reviewer_association.upper() in cfg.maintainer_associations
+        or reviewer in included
+        or reviewer in (inferred or set())
     )
     if not is_maintainer:
         return "not_maintainer"
@@ -108,8 +129,14 @@ def classify(comment: ReviewComment, cfg: Config) -> str | None:
 
 def filter_comments(comments: list[ReviewComment], cfg: Config) -> FilterResult:
     result = FilterResult(total=len(comments))
+    inferred = (
+        frequent_reviewers(comments, cfg.frequent_reviewer_prs)
+        if cfg.frequent_reviewer_prs > 0
+        else set()
+    )
+    result.inferred_maintainers = sorted(inferred)
     for comment in comments:
-        reason = classify(comment, cfg)
+        reason = classify(comment, cfg, inferred)
         if reason:
             result.dropped[reason] += 1
         else:

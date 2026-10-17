@@ -1,6 +1,23 @@
+from pathlib import Path
+
 from folklore.cli import main
 from folklore.config import Config
 from folklore.mine import mine
+
+FIXTURE = str(Path(__file__).parent / "fixtures" / "synthetic_comments.jsonl")
+RUN = [
+    "run",
+    "--comments",
+    FIXTURE,
+    "--repo",
+    "example-org/widgetkit",
+    "--now",
+    "2026-10-15",
+    "--report",
+    "out/report.html",
+    "--skills-dir",
+    "out/skills",
+]
 
 
 class FakeGitHub:
@@ -51,9 +68,9 @@ def test_mine_maps_github_payloads():
     ]
 
 
-def test_demo_and_reject_commands(tmp_path, monkeypatch):
+def test_run_and_reject_commands(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    assert main(["demo", "--out", "out"]) == 0
+    assert main(RUN) == 0
     assert (tmp_path / "out" / "report.html").exists()
     assert (tmp_path / "out" / "skills" / "widgetkit-folklore" / "SKILL.md").exists()
     assert main(["init", "--repo", "o/r"]) == 0
@@ -65,7 +82,7 @@ def test_demo_and_reject_commands(tmp_path, monkeypatch):
 
 def test_check_diff_command(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-    main(["demo", "--out", "out"])
+    main(RUN)
     diff = tmp_path / "d.patch"
     diff.write_text(
         "diff --git a/packages/core/src/x.ts b/packages/core/src/x.ts\n+++ b/packages/core/src/x.ts\n"
@@ -108,7 +125,7 @@ def test_check_pr_posts_one_comment(tmp_path, monkeypatch):
     import folklore.cli as cli
 
     monkeypatch.chdir(tmp_path)
-    main(["demo", "--out", "out"])
+    main(RUN)
     monkeypatch.setattr(cli, "GitHubClient", FakePRClient)
     rules = "out/skills/widgetkit-folklore/assets/rules.json"
     assert main(["check-pr", "--repo", "example-org/widgetkit", "--pr", "5", "--rules", rules]) == 0
