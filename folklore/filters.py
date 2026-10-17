@@ -21,6 +21,29 @@ KNOWN_BOTS = {
     "changeset-bot",
     "allcontributors",
     "folklore",
+    "home-assistant",
+    "bluetoothbot",
+}
+
+# AI review agents. Their comments are machine suggestions, not maintainer folklore, and
+# some post from accounts without a "[bot]" suffix (GitHub Copilot posts as "Copilot").
+AI_REVIEWERS = {
+    "copilot",
+    "copilot-pull-request-reviewer",
+    "coderabbitai",
+    "sourcery-ai",
+    "gemini-code-assist",
+    "chatgpt-codex-connector",
+    "cursor",
+    "claude",
+    "devin-ai-integration",
+    "greptile-apps",
+    "qodo-merge-pro",
+    "ellipsis-dev",
+    "korbit-ai",
+    "graphite-app",
+    "codeant-ai",
+    "bito-code-review",
 }
 
 _LOW_SIGNAL = re.compile(
@@ -56,7 +79,7 @@ class FilterResult:
     def funnel(self) -> list[dict]:
         """Ordered steps for the report: how many comments each filter removed."""
         order = [
-            ("bot", "Bot comments"),
+            ("bot", "Bots and AI reviewers"),
             ("not_maintainer", "Not from a maintainer"),
             ("self_review", "Author reviewing their own PR"),
             ("reply", "Replies inside a thread"),
@@ -73,7 +96,8 @@ def is_bot(login: str) -> bool:
     login = (login or "").lower()
     if login.endswith("[bot]") or login.endswith("-bot"):
         return True
-    return login.split("[")[0] in KNOWN_BOTS
+    name = login.split("[")[0]
+    return name in KNOWN_BOTS or name in AI_REVIEWERS
 
 
 def extract_suggestion(body: str) -> str | None:
@@ -104,7 +128,12 @@ def frequent_reviewers(comments: list[ReviewComment], min_prs: int) -> set[str]:
     prs: dict[str, set[int]] = {}
     for c in comments:
         reviewer = (c.reviewer or "").lower()
-        if not reviewer or is_bot(reviewer) or reviewer == (c.pr_author or "").lower():
+        if (
+            not reviewer
+            or c.reviewer_is_bot
+            or is_bot(reviewer)
+            or reviewer == (c.pr_author or "").lower()
+        ):
             continue
         if c.reviewer_association.upper() in ("NONE", "FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER"):
             continue
@@ -117,7 +146,7 @@ def classify(comment: ReviewComment, cfg: Config, inferred: set[str] | None = No
     reviewer = (comment.reviewer or "").lower()
     excluded = {r.lower() for r in cfg.exclude_reviewers}
     included = {r.lower() for r in cfg.include_reviewers}
-    if is_bot(reviewer) or reviewer in excluded:
+    if comment.reviewer_is_bot or is_bot(reviewer) or reviewer in excluded:
         return "bot"
     is_maintainer = (
         comment.reviewer_association.upper() in cfg.maintainer_associations

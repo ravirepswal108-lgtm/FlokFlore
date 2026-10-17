@@ -67,7 +67,7 @@ Then:
 |---|---|---|
 | **Mine** | Reads inline review comments (with the diff hunk they were left on) and review summaries from the latest closed PRs. | Only the GitHub REST API; nothing is cloned or run. |
 | **Filter** | Keeps feedback from maintainers (`OWNER`, `MEMBER`, `COLLABORATOR` by default). Drops bots, replies, self-reviews, "LGTM", and short remarks. | The report shows how many comments each filter removed. |
-| **Cluster** | Embeds each comment together with the code it points at, and groups similar feedback. | A rule needs 3+ comments across 2+ PRs aimed at 2+ different contributors, and the comments must share wording, not just code. Patterns not seen for a year are marked **stale**. |
+| **Cluster** | Embeds each comment together with the code it points at, and groups similar feedback. | A rule needs 3+ comments across 3+ PRs aimed at 3+ different contributors, and the comments must share wording, not just code. Patterns not seen for a year are marked **stale**. |
 | **Distill** | Phrases each cluster as one short rule, with a real before/after example and links to the source reviews. | Titles and rationale come from what maintainers wrote. Sources are attached by Folklore, never by a model. Model-chosen code must exist verbatim in the cited diff. |
 | **Publish** | Writes `skills/<repo>-folklore/SKILL.md`, one `references/<area>.md` per part of the codebase, and `assets/rules.json`. | Validated against the Agent Skills spec. Quoted code is sanitized and marked as data. No usernames are included. |
 | **Enforce** | A GitHub Action leaves one friendly pre-review comment when a PR breaks a rule. | Reads rules from the base branch and the PR as a diff. Never checks out PR code. |
@@ -155,7 +155,7 @@ any LLM, and a pipeline that runs fully offline on open models.
 |---|---|---|
 | `mine.max_prs` | `300` | How many recent closed PRs to read. |
 | `filter.maintainer_associations` | `[OWNER, MEMBER, COLLABORATOR]` | Whose feedback counts. |
-| `cluster.min_comments` / `min_prs` / `min_authors` | `3` / `2` / `2` | Evidence a rule needs. |
+| `cluster.min_comments` / `min_prs` / `min_authors` | `3` / `3` / `3` | Evidence a rule needs. |
 | `cluster.min_reviewers` | `1` | Raise to `2` to drop one maintainer's personal preferences. |
 | `cluster.stale_after_days` | `365` | When an old pattern counts as stale. |
 | `distill.max_rules` | `12` | Keep the skill short and readable. |

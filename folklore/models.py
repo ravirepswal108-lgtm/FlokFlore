@@ -38,6 +38,7 @@ class ReviewComment:
     url: str = ""
     kind: str = "inline"  # "inline" (on a line of the diff) or "review" (review summary)
     in_reply_to_id: int | None = None
+    reviewer_is_bot: bool = False  # GitHub's own account type says "Bot"
 
     @property
     def created(self) -> datetime:

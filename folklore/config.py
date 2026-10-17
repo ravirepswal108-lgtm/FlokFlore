@@ -31,8 +31,8 @@ cluster:
   algorithm: auto             # auto | agglomerative | hdbscan
   distance_threshold: auto    # agglomerative only; lower = tighter clusters (auto: 0.9 tfidf, 0.45 dense)
   min_comments: 3             # a rule needs at least this many comments...
-  min_prs: 2                  # ...spread over at least this many PRs...
-  min_authors: 2              # ...aimed at at least this many different PR authors
+  min_prs: 3                  # ...spread over at least this many PRs...
+  min_authors: 3              # ...aimed at at least this many different PR authors
   min_reviewers: 1            # raise to 2 to drop single-maintainer preferences
   min_coherence: 0.12         # comments must also share wording, not just code
   recency_half_life_days: 180
@@ -94,8 +94,8 @@ class Config:
     algorithm: str = "auto"
     distance_threshold: float | None = None  # None = pick a default for the embedder
     min_comments: int = 3
-    min_prs: int = 2
-    min_authors: int = 2
+    min_prs: int = 3
+    min_authors: int = 3
     min_reviewers: int = 1
     min_coherence: float = 0.12
     recency_half_life_days: float = 180

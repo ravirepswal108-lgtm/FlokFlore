@@ -74,3 +74,9 @@ def test_drops_feedback_that_asks_for_nothing():
     ):
         assert reason(body=body) == "not_actionable", body
     assert reason(body="Tests go next to the file they test, not in the tests folder.") is None
+
+
+def test_ai_reviewers_are_not_maintainers():
+    assert reason(reviewer="Copilot", reviewer_association="CONTRIBUTOR") == "bot"
+    assert reason(reviewer="coderabbitai[bot]") == "bot"
+    assert reason(reviewer="some-app", reviewer_is_bot=True) == "bot"

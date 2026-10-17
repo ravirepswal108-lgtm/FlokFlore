@@ -9,7 +9,7 @@ on:
     inputs:
       repos:
         description: Space-separated owner/name list
-        default: excalidraw/excalidraw vitejs/vite astral-sh/ruff
+        default: astral-sh/ruff
       max_prs:
         description: Closed PRs to read per repo
         default: "150"
@@ -36,9 +36,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for repo in ${{ inputs.repos || 'home-assistant/core' }}; do
+          for repo in ${{ inputs.repos || 'astral-sh/ruff' }}; do
             name="${repo/\//__}"
-            if folklore mine --repo "$repo" --max-prs "${{ inputs.max_prs || '400' }}" \
+            if folklore mine --repo "$repo" --max-prs "${{ inputs.max_prs || '600' }}" \
                  --out "/tmp/out/mined/$name.jsonl.new" > "/tmp/out/logs/$name.log" 2>&1; then
               mv "/tmp/out/mined/$name.jsonl.new" "/tmp/out/mined/$name.jsonl"
             else

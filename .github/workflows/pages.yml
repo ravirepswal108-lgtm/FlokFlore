@@ -21,8 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  LIVE_REPO: home-assistant/core
-  MAX_PRS: "400"
+  LIVE_REPO: astral-sh/ruff
+  MAX_PRS: "600"
 
 jobs:
   build:

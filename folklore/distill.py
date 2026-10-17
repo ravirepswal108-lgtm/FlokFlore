@@ -102,7 +102,7 @@ def imperative(sentence: str) -> str:
     if len(text) > 60:
         text = re.sub(r"\s*\([^)]*\)", "", text)
     # Keep the instruction, drop trailing explanation ("..., it keeps the bundle small").
-    clauses = re.split(r",\s+|;\s+|\s+[—–-]\s+", text)
+    clauses = re.split(r",\s+|;\s+|:\s+|\s+[—–-]\s+", text)
     kept_clauses = clauses[:1]
     for clause in clauses[1:]:
         if _EXPLAINS.match(clause):

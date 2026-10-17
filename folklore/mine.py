@@ -53,6 +53,7 @@ def mine(
                     url=raw.get("html_url") or "",
                     kind="inline",
                     in_reply_to_id=raw.get("in_reply_to_id"),
+                    reviewer_is_bot=user.get("type") == "Bot",
                 )
             )
     except GitHubError as exc:
@@ -78,6 +79,7 @@ def mine(
                             created_at=review.get("submitted_at") or "",
                             url=review.get("html_url") or "",
                             kind="review",
+                            reviewer_is_bot=user.get("type") == "Bot",
                         )
                     )
         except GitHubError as exc:
