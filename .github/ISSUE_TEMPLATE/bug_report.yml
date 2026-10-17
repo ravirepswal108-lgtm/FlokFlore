@@ -1,0 +1,27 @@
+name: Bug report
+description: Something Folklore did was wrong or broke.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the command you ran and the output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Folklore version
+      description: Output of `folklore --version`
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Which stage?
+      options: [mine, filter, cluster, distill, publish, report, check-pr / Action, not sure]

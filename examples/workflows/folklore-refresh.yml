@@ -1,0 +1,59 @@
+# Copy to .github/workflows/folklore-refresh.yml. Once a month (or on demand) it re-mines
+# review history and opens a pull request with the updated skill. Nothing becomes project
+# policy until a maintainer reviews and merges that PR.
+name: Folklore refresh
+
+on:
+  schedule:
+    - cron: "17 4 1 * *"  # 04:17 UTC on the 1st of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Folklore
+        run: python -m pip install --quiet "folklore-skills @ git+https://github.com/your-org/folklore@v0"
+
+      - name: Mine, analyze and publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FOLKLORE_API_KEY: ${{ secrets.FOLKLORE_API_KEY }}  # optional
+        run: folklore run --repo "${{ github.repository }}" --agents-md
+
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- skills AGENTS.md; then
+            echo "No changes to the review conventions."
+            exit 0
+          fi
+          branch="folklore/refresh"
+          git config user.name "folklore-bot"
+          git config user.email "folklore-bot@users.noreply.github.com"
+          git switch -C "$branch"
+          git add skills AGENTS.md
+          git commit -m "Update review conventions from recent PR feedback"
+          git push --force origin "$branch"
+          gh pr view "$branch" >/dev/null 2>&1 || gh pr create \
+            --title "Update review conventions (Folklore)" \
+            --body "Folklore re-read recent review history. Please check each rule; run \`folklore reject <rule-id>\` for any that are not real conventions. The full report is in the workflow artifacts." \
+            --head "$branch"
+
+      - name: Keep the report
+        uses: actions/upload-artifact@v4
+        with:
+          name: folklore-report
+          path: .folklore/report.html

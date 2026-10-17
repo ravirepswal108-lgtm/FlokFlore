@@ -1,0 +1,40 @@
+# Copy to .github/workflows/folklore-pre-review.yml in the repository you maintain.
+#
+# Why pull_request_target: most Hacktoberfest PRs come from forks, and workflows triggered
+# by `pull_request` from a fork cannot write comments. `pull_request_target` can, so it
+# must never check out or run the PR's code. This workflow only checks out the BASE
+# branch (to read the approved rules) and reads the PR through the GitHub API as a diff.
+name: Folklore pre-review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, ready_for_review, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: folklore-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pre-review:
+    # Skip draft PRs. To cap cost on busy repos, also set `enforce.require_label`
+    # in .folklore.yml so the check runs only on labelled PRs.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the base branch only (trusted rules and config)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Folklore
+        uses: your-org/folklore@v0  # pin to a release tag or commit SHA
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          rules: skills/YOUR-REPO-folklore/assets/rules.json
+          # llm-api-key: ${{ secrets.FOLKLORE_API_KEY }}  # only for enforce.mode: llm

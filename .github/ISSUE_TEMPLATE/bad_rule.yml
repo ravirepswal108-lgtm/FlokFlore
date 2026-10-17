@@ -1,0 +1,31 @@
+name: Folklore proposed a bad rule
+description: A rule that is not a real convention, is phrased badly, or flags innocent code.
+labels: [rule-quality]
+body:
+  - type: input
+    id: repo
+    attributes:
+      label: Repository (if public)
+  - type: textarea
+    id: rule
+    attributes:
+      label: The rule as Folklore wrote it
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What is wrong with it?
+      options:
+        - Not a real convention (one-off feedback)
+        - Outdated (the project changed its mind)
+        - Badly phrased
+        - Wrong scope (applies to the wrong files)
+        - The pre-review bot flagged innocent code
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
