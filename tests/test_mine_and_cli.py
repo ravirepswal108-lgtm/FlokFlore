@@ -7,7 +7,7 @@ class FakeGitHub:
     def closed_pulls(self, repo, limit):
         return [{"number": 7, "created_at": "2026-09-01T00:00:00Z", "user": {"login": "sam"}}]
 
-    def review_comments(self, repo, since=None, limit=None):
+    def review_comments(self, repo, since=None, limit=None):  # noqa: ARG002
         return [
             {
                 "id": 1,

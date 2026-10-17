@@ -1,0 +1,47 @@
+# Mines real review history from public repositories and stores the raw feedback on the
+# `data` branch, so rule quality can be measured on real data instead of made-up examples.
+name: Mine real data
+
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: Space-separated owner/name list
+        default: excalidraw/excalidraw vitejs/vite astral-sh/ruff
+      max_prs:
+        description: Closed PRs to read per repo
+        default: "150"
+
+permissions:
+  contents: write
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install .
+      - name: Mine
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/out/mined
+          for repo in ${{ inputs.repos }}; do
+            file="/tmp/out/mined/${repo/\//__}.jsonl"
+            folklore mine --repo "$repo" --max-prs "${{ inputs.max_prs }}" --out "$file" || echo "failed: $repo"
+          done
+          ls -la /tmp/out/mined
+      - name: Store on the data branch
+        run: |
+          cd /tmp/out
+          git init -q -b data
+          git config user.name "folklore-bot"
+          git config user.email "folklore-bot@users.noreply.github.com"
+          printf "Raw review feedback mined from public pull requests on %s.\n" "$(date -u +%F)" > README.md
+          git add -A
+          git commit -q -m "Mined review data $(date -u +%F)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" data

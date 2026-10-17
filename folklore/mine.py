@@ -31,7 +31,9 @@ def mine(
 
     say("Reading inline review comments")
     comments: list[ReviewComment] = []
-    for raw in client.review_comments(repo, since=oldest):
+    # Comments are listed newest first across the whole repo; cap the pages read so an old,
+    # recently-touched PR cannot pull in years of unrelated history.
+    for raw in client.review_comments(repo, since=oldest, limit=max_prs * 40):
         number = pr_number_from_url(raw.get("pull_request_url", ""))
         if number not in pulls:
             continue
