@@ -71,6 +71,8 @@ class Source:
     comment_id: int
     pr_number: int
     url: str = ""
+    excerpt: str = ""  # what the maintainer wrote (sanitized, shortened, no names)
+    created_at: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Source:

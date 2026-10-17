@@ -3,32 +3,49 @@
 **Turn a project's unwritten review rules into an Agent Skill, so contributors and their
 coding agents stop making the mistakes maintainers keep correcting.**
 
-Every open-source project has rules nobody wrote down: *"we don't use lodash here"*,
-*"tests go next to the file"*, *"never edit the generated client, change the schema"*.
-They live in maintainers' heads and in hundreds of old review comments. Folklore reads
+Every open-source project has rules nobody wrote down. In
+[astral-sh/ruff](https://github.com/astral-sh/ruff), for example, maintainers pointed
+contributors to mdtests in reviews of 7 different pull requests, and asked for behaviour
+changes to be preview-gated in 3. Rules like these live in maintainers' heads and in
+hundreds of old review comments. Folklore reads
 that review history, finds the feedback maintainers keep repeating, and writes it up as a
 standard [Agent Skill](https://agentskills.io/specification), with evidence and sources
 for every rule. A maintainer approves it before it becomes anything official.
 
-**[Open the live demo →](https://ravirepswal108-lgtm.github.io/FlokFlore/)** The review
-dashboard for a fictional repository, built from this code on every push.
+**[Open the live dashboard →](https://ravirepswal108-lgtm.github.io/FlokFlore/)** Folklore
+run on the real review history of [astral-sh/ruff](https://github.com/astral-sh/ruff),
+refreshed every week. Every rule links to the actual pull-request reviews it came from.
 
 [![CI](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/ci.yml/badge.svg)](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/ci.yml)
-[![Live demo](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/pages.yml/badge.svg)](https://ravirepswal108-lgtm.github.io/FlokFlore/)
+[![Live site](https://github.com/ravirepswal108-lgtm/FlokFlore/actions/workflows/pages.yml/badge.svg)](https://ravirepswal108-lgtm.github.io/FlokFlore/)
 
-![The Folklore report for the bundled demo repository](docs/report-preview.png)
+![The Folklore dashboard on real astral-sh/ruff review data](docs/report-preview.png)
 
-## Try it in one minute
-
-No GitHub token or AI service needed. The demo runs on a bundled, fictional review history.
+## Quick start
 
 ```bash
 pip install "folklore-skills @ git+https://github.com/ravirepswal108-lgtm/FlokFlore"
-folklore demo
+export GITHUB_TOKEN=ghp_...          # any token that can read public repositories
+folklore run --repo astral-sh/ruff --max-prs 300 --no-publish
 ```
 
-Open `folklore-demo/report.html` in your browser, and look at
-`folklore-demo/skills/widgetkit-folklore/`.
+Open `.folklore/report.html` in your browser.
+
+## What real data taught us
+
+Folklore is tested on real repositories, and real data changed the design:
+
+- **AI reviewers are everywhere.** In 300 recent home-assistant/core pull requests, 180 of
+  the 228 comments that looked like maintainer feedback came from GitHub Copilot's reviewer,
+  which posts as a normal-looking `Copilot` account. Folklore now drops AI review agents
+  and accounts GitHub marks as bots, so rules come from people.
+- **Maintainers can look like contributors.** GitHub labels members of an organisation
+  whose membership is private as `CONTRIBUTOR`. Folklore also counts anyone who reviews
+  three or more pull requests by other people as a maintainer.
+- **Most review comments are not rules.** Discussion, praise and PR-specific questions are
+  dropped, and a rule must come up across 3+ pull requests aimed at 3+ different
+  contributors. On real repositories expect a handful of rules, not dozens, and review
+  each one before publishing.
 
 ## The review dashboard
 
@@ -45,7 +62,7 @@ Every run writes `.folklore/report.html`: one self-contained file that works off
 
 The palette has no blue anywhere, and it follows your system's light or dark mode.
 
-## Use it on a real repository
+## Use it on your repository
 
 ```bash
 export GITHUB_TOKEN=ghp_...          # read access is enough
@@ -120,7 +137,7 @@ treats that text as hostile:
 - **Prompt injection in quoted code.** Lines that look like instructions to an AI
   (`ignore previous instructions`, `AI agents:`, `curl … | sh`, …) are removed from every
   example, fences are neutralized, and examples are length-limited and labelled as data.
-  The demo data contains such an attack; the tests check it never reaches the skill.
+  The test fixture contains such an attack; the tests check it never reaches the skill.
 - **The bot.** The workflow uses `pull_request_target` so it can comment on fork PRs, and
   for that reason it checks out only the base branch. Rules come from the base branch, so
   a PR cannot change the rules it is checked against. In LLM mode the model can only
@@ -165,7 +182,6 @@ any LLM, and a pipeline that runs fully offline on open models.
 ## Commands
 
 ```
-folklore demo                 run everything on bundled example data
 folklore init                 write a starter .folklore.yml
 folklore mine                 download review feedback from GitHub
 folklore analyze              filter, cluster and distill into rules

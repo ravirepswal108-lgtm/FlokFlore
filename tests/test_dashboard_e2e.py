@@ -31,7 +31,7 @@ def browser():
 def page(browser, fixture_analysis, tmp_path):
     analysis = dict(fixture_analysis)
     analysis["rules"] = [dict(r) for r in fixture_analysis["rules"]]
-    analysis["rules"][0]["title"] = '<img src=x onerror="window.pwned=1"> Don\'t use lodash.'
+    analysis["rules"][-1]["title"] = '<img src=x onerror="window.pwned=1"> Untrusted title.'
     path = write_report(analysis, tmp_path / "report.html")
     context = browser.new_context()
     pg = context.new_page()
@@ -68,7 +68,7 @@ def test_tabs_and_deep_links(page):
 
 def test_untrusted_titles_are_text(page):
     page.click("#tab-rules")
-    assert "<img" in visible_titles(page)[0]
+    assert any("<img" in t for t in visible_titles(page))
     assert page.evaluate("window.pwned") is None
 
 

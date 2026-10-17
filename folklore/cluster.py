@@ -123,6 +123,49 @@ def cluster_labels(vectors: np.ndarray, cfg: Config) -> np.ndarray:
     return np.array([label if sizes[label] >= 2 else -1 for label in labels])
 
 
+def split_broad_clusters(
+    labels: np.ndarray, vectors: np.ndarray, sims: np.ndarray, cfg: Config
+) -> np.ndarray:
+    """Re-cluster any large group whose comments do not share wording, with a tighter
+    threshold, until each part is coherent or too small to matter.
+
+    On a few hundred real reviews a single loose threshold merges several topics into one
+    blob; splitting recovers the real patterns inside it.
+    """
+    labels = labels.copy()
+    next_label = int(labels.max()) + 1 if len(labels) else 0
+    start = cfg.effective_distance_threshold
+    queue = [(int(label), start) for label in set(labels.tolist()) if label >= 0]
+    while queue:
+        label, threshold = queue.pop()
+        idx = np.where(labels == label)[0]
+        if len(idx) < 2 * cfg.min_comments:
+            continue
+        pair = sims[np.ix_(idx, idx)]
+        coherence = (pair.sum() - np.trace(pair)) / (len(idx) * (len(idx) - 1))
+        if coherence >= cfg.min_coherence:
+            continue
+        threshold *= 0.85
+        if threshold < 0.3:
+            continue
+        sub = AgglomerativeClustering(
+            n_clusters=None, metric="cosine", linkage="average", distance_threshold=threshold
+        ).fit_predict(vectors[idx])
+        sizes = Counter(sub.tolist())
+        if len(sizes) == 1:
+            queue.append((label, threshold))
+            continue
+        for part, size in sizes.items():
+            members = idx[sub == part]
+            if size < 2:
+                labels[members] = -1
+                continue
+            labels[members] = next_label
+            queue.append((next_label, threshold))
+            next_label += 1
+    return labels
+
+
 def infer_scope(paths: list[str]) -> tuple[list[str], str]:
     """Guess which part of the codebase a rule applies to, from the files it was raised on."""
     paths = [p for p in paths if p]
@@ -208,16 +251,49 @@ def text_coherence(texts: list[str]) -> np.ndarray:
     return (matrix @ matrix.T).toarray()
 
 
+def evidence_for(members: list[ReviewComment], cfg: Config, now: datetime) -> Evidence:
+    created = sorted(c.created for c in members)
+    ages = [max(0.0, (now - c.created).total_seconds() / 86400) for c in members]
+    recency = sum(math.pow(0.5, age / cfg.recency_half_life_days) for age in ages)
+    return Evidence(
+        comments=len(members),
+        prs=len({c.pr_number for c in members}),
+        reviewers=len({c.reviewer for c in members}),
+        authors=len({c.pr_author for c in members if c.pr_author}),
+        first_seen=created[0].isoformat(),
+        last_seen=created[-1].isoformat(),
+        recency_score=round(recency, 3),
+    )
+
+
+def evidence_problems(evidence: Evidence, cfg: Config) -> list[str]:
+    reasons = []
+    if evidence.comments < cfg.min_comments:
+        reasons.append(f"only {evidence.comments} comments (needs {cfg.min_comments})")
+    if evidence.prs < cfg.min_prs:
+        reasons.append(f"only {evidence.prs} PR (needs {cfg.min_prs})")
+    if evidence.authors < cfg.min_authors:
+        reasons.append(
+            f"aimed at {evidence.authors} contributor (needs {cfg.min_authors}); "
+            "may be one person's repeated mistake"
+        )
+    if evidence.reviewers < cfg.min_reviewers:
+        reasons.append(f"raised by {evidence.reviewers} maintainer (needs {cfg.min_reviewers})")
+    return reasons
+
+
 def build_clusters(
     comments: list[ReviewComment],
     vectors: np.ndarray,
     cfg: Config,
     now: datetime,
 ) -> list[Cluster]:
-    labels = cluster_labels(vectors, cfg)
     texts = [clean_text(c.body) for c in comments]
-    keywords = keywords_by_cluster(texts, labels)
     sims = text_coherence(texts)
+    labels = cluster_labels(vectors, cfg)
+    if cfg.algorithm != "hdbscan" and len(comments) <= AGGLOMERATIVE_MAX:
+        labels = split_broad_clusters(labels, vectors, sims, cfg)
+    keywords = keywords_by_cluster(texts, labels)
     groups: dict[int, list[int]] = defaultdict(list)
     for index, label in enumerate(labels):
         if label >= 0:
@@ -227,18 +303,8 @@ def build_clusters(
     for label, members in groups.items():
         members_c = [comments[i] for i in members]
         created = sorted(c.created for c in members_c)
-        ages = [max(0.0, (now - c.created).total_seconds() / 86400) for c in members_c]
-        recency = sum(math.pow(0.5, age / cfg.recency_half_life_days) for age in ages)
         reviewers = sorted({c.reviewer for c in members_c})
-        evidence = Evidence(
-            comments=len(members_c),
-            prs=len({c.pr_number for c in members_c}),
-            reviewers=len(reviewers),
-            authors=len({c.pr_author for c in members_c if c.pr_author}),
-            first_seen=created[0].isoformat(),
-            last_seen=created[-1].isoformat(),
-            recency_score=round(recency, 3),
-        )
+        evidence = evidence_for(members_c, cfg, now)
         pair = sims[np.ix_(members, members)]
         n = len(members)
         coherence = float((pair.sum() - np.trace(pair)) / (n * (n - 1))) if n > 1 else 1.0
@@ -254,16 +320,7 @@ def build_clusters(
             coherence=round(coherence, 3),
         )
         days_since = (now - created[-1]).total_seconds() / 86400
-        reasons = []
-        if evidence.comments < cfg.min_comments:
-            reasons.append(f"only {evidence.comments} comments (needs {cfg.min_comments})")
-        if evidence.prs < cfg.min_prs:
-            reasons.append(f"only {evidence.prs} PR (needs {cfg.min_prs})")
-        if evidence.authors < cfg.min_authors:
-            reasons.append(
-                f"aimed at {evidence.authors} contributor (needs {cfg.min_authors}); "
-                "may be one person's repeated mistake"
-            )
+        reasons = evidence_problems(evidence, cfg)
         if coherence < cfg.min_coherence:
             reasons.append(
                 "the comments do not share a message (too broad; try a lower "
@@ -271,8 +328,6 @@ def build_clusters(
                 if evidence.comments >= 2 * cfg.min_comments
                 else "the comments share code but not a message"
             )
-        if evidence.reviewers < cfg.min_reviewers:
-            reasons.append(f"raised by {evidence.reviewers} maintainer (needs {cfg.min_reviewers})")
         if reasons:
             cluster.status, cluster.reason = "discarded", "; ".join(reasons)
         elif days_since > cfg.stale_after_days:

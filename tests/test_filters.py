@@ -80,3 +80,7 @@ def test_ai_reviewers_are_not_maintainers():
     assert reason(reviewer="Copilot", reviewer_association="CONTRIBUTOR") == "bot"
     assert reason(reviewer="coderabbitai[bot]") == "bot"
     assert reason(reviewer="some-app", reviewer_is_bot=True) == "bot"
+
+
+def test_markdown_links_keep_their_label():
+    assert clean_text("make it a [preview](https://x.y/p) change") == "make it a preview change"

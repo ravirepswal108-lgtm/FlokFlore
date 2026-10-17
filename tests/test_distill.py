@@ -114,3 +114,25 @@ def test_llm_distiller_can_reject_and_falls_back():
 
 def test_parse_json_object_tolerates_chatter():
     assert parse_json_object('Sure!\n```json\n{"a": "}"}\n```') == {"a": "}"}
+
+
+def test_evidence_counts_only_comments_that_ask_for_the_rule():
+    from folklore.distill import document_frequency, supporting_members
+    from folklore.models import Evidence, Rule
+
+    members = [
+        make_comment(id=1, body="Unfortunately I think we need to preview-gate this change."),
+        make_comment(id=2, body="This change must be preview gated in patch releases."),
+        make_comment(id=3, body="Could we rename this variable to something clearer?"),
+    ]
+    rule = Rule(
+        id="r",
+        title="Preview-gate this whole change.",
+        rationale="",
+        scope=["**"],
+        area="general",
+        evidence=Evidence(),
+        sources=[],
+    )
+    df = document_frequency([m.body for m in members])
+    assert [m.id for m in supporting_members(rule, members, df)] == [1, 2]

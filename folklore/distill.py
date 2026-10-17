@@ -28,7 +28,9 @@ _LEAD_INS = re.compile(
     re.IGNORECASE,
 )
 _POLITE = re.compile(
-    r"^(could|can|would) you( please)?( also)?\s+|^please\s+|^(i think )?(we|you) should( also)?\s+"
+    r"^(unfortunately|honestly|actually|ideally|also|so|ok|okay)[,]?\s+"
+    r"|^(i (think|believe|guess|feel like)( that)? )?(we|you)('ll| will)? (need|have) to\s+"
+    r"|^(could|can|would) (you|we)( please)?( also)?\s+|^please\s+|^(i think )?(we|you) should( also)?\s+"
     r"|^let'?s\s+|^would you mind\s+|^it would be (nice|great|better|good) (to|if we)\s+"
     r"|^(i'd|i would) (prefer|suggest|recommend) (to |that we |we )?\s*|^make sure (to |that )?",
     re.IGNORECASE,
@@ -48,6 +50,41 @@ _NORM = re.compile(
     r"\b(should|must|need to|needs to|have to|has to|go|goes|belong|belongs|live|lives)\b"
 )
 _REQUEST_QUESTION = re.compile(r"^(could|can|would|will) (you|we)\b|^why not\b", re.IGNORECASE)
+# Sentence openings that describe or muse rather than state a convention.
+NOT_A_SUBJECT = {
+    "i",
+    "i'm",
+    "it",
+    "it's",
+    "this",
+    "that",
+    "these",
+    "those",
+    "either",
+    "seems",
+    "looks",
+    "with",
+    "there",
+    "here",
+    "hmm",
+    "maybe",
+    "perhaps",
+    "interesting",
+    "not",
+    "so",
+    "but",
+    "and",
+    "or",
+    "if",
+    "when",
+    "the",
+    "we're",
+    "you're",
+    "they",
+    "he",
+    "she",
+    "probably",
+}
 _FILENAME = re.compile(r"\b[\w-]+\.(tsx?|jsx?|py|go|rs|rb|java|kt|swift|cs|cpp|vue|svelte)\b")
 IMPERATIVE_VERBS = {
     "use",
@@ -150,6 +187,65 @@ def validate_detect(pattern: str, bad_lines: list[str], good_lines: list[str]) -
     return pattern
 
 
+# Keywords and everyday words that appear in code and prose alike; never a detection token.
+COMMON_TOKENS = {
+    "const",
+    "let",
+    "var",
+    "import",
+    "from",
+    "return",
+    "self",
+    "this",
+    "for",
+    "while",
+    "if",
+    "else",
+    "elif",
+    "def",
+    "fn",
+    "pub",
+    "use",
+    "mut",
+    "impl",
+    "struct",
+    "enum",
+    "class",
+    "function",
+    "async",
+    "await",
+    "new",
+    "not",
+    "and",
+    "the",
+    "with",
+    "type",
+    "name",
+    "none",
+    "null",
+    "true",
+    "false",
+    "string",
+    "str",
+    "int",
+    "value",
+    "data",
+    "test",
+    "tests",
+    "match",
+    "case",
+    "where",
+    "some",
+    "what",
+    "that",
+    "when",
+    "then",
+    "into",
+    "should",
+    "would",
+}
+
+
 def derive_detect(bad_lines: list[str], good_lines: list[str], review_text: str = "") -> str | None:
     """Find a code token present in most flagged lines and absent from every fix.
 
@@ -159,8 +255,9 @@ def derive_detect(bad_lines: list[str], good_lines: list[str], review_text: str 
     """
     mentioned = review_text.lower()
     bad_lines = [b for b in bad_lines if b.strip()]
-    # Without any fixed code to compare against, demand more flagged lines.
-    if len(bad_lines) < (2 if good_lines else 3):
+    # Only derive a pattern when reviewers showed the fix (suggestion blocks): on real
+    # repositories, guessing from flagged lines alone picked up incidental words.
+    if len(bad_lines) < 2 or not good_lines:
         return None
     good_tokens = {t.rstrip("(") for g in good_lines for t in _IDENT.findall(g)}
     counts: Counter[str] = Counter()
@@ -170,16 +267,7 @@ def derive_detect(bad_lines: list[str], good_lines: list[str], review_text: str 
         if count < max(2, int(0.5 * len(bad_lines) + 0.5)):
             break
         bare = token.rstrip("(")
-        if len(bare) < 3 or bare in {
-            "const",
-            "let",
-            "var",
-            "import",
-            "from",
-            "return",
-            "self",
-            "this",
-        }:
+        if len(bare) < 3 or bare.lower() in COMMON_TOKENS:
             continue
         if mentioned and not re.search(
             r"(?<![\w.])" + re.escape(bare.lower()) + r"(?![\w])", mentioned
@@ -274,7 +362,7 @@ def heuristic_title(members: list[ReviewComment], keywords: list[str] | None = N
         for sentence in split_sentences(clean_text(comment.body))[:3]:
             if _PRAISE.match(sentence.strip()) or not DIRECTIVE.search(sentence):
                 continue
-            if sentence.rstrip().endswith("?") and not _REQUEST_QUESTION.match(
+            if sentence.rstrip().rstrip(")").endswith("?") and not _REQUEST_QUESTION.match(
                 _LEAD_INS.sub("", sentence.strip())
             ):
                 continue  # "Should this be ...?" is a question about one PR, not a rule
@@ -283,12 +371,13 @@ def heuristic_title(members: list[ReviewComment], keywords: list[str] | None = N
                 continue
             tokens = {t.strip(".'") for t in re.findall(r"[\w.']+", title.lower())}
             first = title.split()[0].lower().rstrip(".,")
-            if first in IMPERATIVE_VERBS:
-                directive = 1.5  # "Use the logger ..."
-            elif _NORM.search(" ".join(title.lower().split()[:6])):
+            asked = bool(_POLITE.match(_LEAD_INS.sub("", sentence.strip())))
+            if first in IMPERATIVE_VERBS or asked:
+                directive = 1.5  # "Use the logger ...", or "we need to X" turned into "X"
+            elif first not in NOT_A_SUBJECT and _NORM.search(" ".join(title.lower().split()[:6])):
                 directive = 1.0  # "Tests go next to ...", "Strings must ..."
             else:
-                directive = 0.0
+                continue  # opinions and observations ("Seems ...", "This says ...") are not rules
             score = (
                 min(len(tokens & words), 2)
                 + directive
@@ -320,7 +409,16 @@ def _sources(members: list[ReviewComment]) -> list[Source]:
     by_pr: dict[int, ReviewComment] = {}
     for c in sorted(members, key=lambda m: m.created, reverse=True):
         by_pr.setdefault(c.pr_number, c)
-    return [Source(c.id, c.pr_number, c.url) for c in by_pr.values()]
+    return [
+        Source(
+            c.id,
+            c.pr_number,
+            c.url,
+            sanitize_text(clean_text(c.body), limit=240),
+            c.created_at,
+        )
+        for c in by_pr.values()
+    ]
 
 
 class HeuristicDistiller:
@@ -471,3 +569,119 @@ def make_distiller(cfg: Config):
     if cfg.llm.provider == "openai":
         return LLMDistiller(OpenAICompatClient(cfg.llm))
     return HeuristicDistiller()
+
+
+_ANCHOR_STOP = {
+    "instead",
+    "rather",
+    "whole",
+    "small",
+    "large",
+    "more",
+    "less",
+    "sure",
+    "always",
+    "never",
+    "here",
+    "there",
+    "these",
+    "those",
+    "this",
+    "that",
+    "code",
+    "change",
+    "changes",
+    "thing",
+    "things",
+    "case",
+    "cases",
+    "test",
+    "tests",
+    "file",
+    "files",
+    "line",
+    "lines",
+    "existing",
+    "like",
+    "also",
+    "just",
+    "please",
+    "should",
+    "would",
+    "could",
+    "need",
+    "needs",
+    "make",
+    "possible",
+    "necessary",
+    "really",
+    "something",
+    "anything",
+    "everything",
+}
+
+
+def rule_anchors(
+    title: str,
+    document_frequency: dict[str, int],
+    members: list[ReviewComment] | None = None,
+    limit: int = 2,
+) -> list[str]:
+    """The most distinctive words in a rule's title, e.g. "mdtests" or "logger": words the
+    cluster uses a lot that the rest of the review history rarely does."""
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    words = []
+    for word in re.findall(r"[a-z][a-z0-9_.]*", title.lower().replace("-", " ")):
+        word = word.strip(".")
+        if (
+            len(word) < 4
+            or word in ENGLISH_STOP_WORDS
+            or word in _ANCHOR_STOP
+            or word in IMPERATIVE_VERBS
+            or word in words
+        ):
+            continue
+        words.append(word)
+    texts = [m.body for m in members or []]
+
+    def specificity(word: str) -> tuple[float, int]:
+        inside = sum(1 for t in texts if mentions(t, [word]))
+        overall = document_frequency.get(_stem(word), 0) or 1
+        return (-(inside / overall), -inside)
+
+    words.sort(key=specificity)
+    return words[:limit]
+
+
+def _stem(word: str) -> str:
+    return word[: max(4, len(word) - 2)] if len(word) >= 6 else word
+
+
+def mentions(text: str, anchors: list[str]) -> bool:
+    text = text.lower()
+    return any(re.search(r"(?<![a-z0-9])" + re.escape(_stem(a)), text) for a in anchors)
+
+
+def document_frequency(texts: list[str]) -> dict[str, int]:
+    df: dict[str, int] = {}
+    for text in texts:
+        for word in set(re.findall(r"[a-z][a-z0-9_.]*", text.lower().replace("-", " "))):
+            stem = _stem(word.strip("."))
+            df[stem] = df.get(stem, 0) + 1
+    return df
+
+
+def supporting_members(
+    rule: Rule, members: list[ReviewComment], df: dict[str, int]
+) -> list[ReviewComment]:
+    """Members that actually mention what the rule asks for.
+
+    Clusters group comments by overall similarity, so a cluster can include comments that
+    are near the topic without asking for the rule. Evidence counts and sources use only the
+    comments that mention the rule's distinctive words.
+    """
+    anchors = rule_anchors(rule.title, df, members)
+    if not anchors:
+        return members
+    return [m for m in members if mentions(m.body, anchors)]

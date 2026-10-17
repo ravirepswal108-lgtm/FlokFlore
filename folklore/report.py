@@ -213,6 +213,10 @@ code, pre, .mono { font-family: var(--font-mono); }
 .example .only { grid-column: 1 / -1; }
 .label-sm { display: block; margin-bottom: 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
 .note { padding: 8px 12px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+.quotes { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.quotes li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.quotes .q-meta { font: 500 12px var(--font-mono); color: var(--muted); }
+.quotes q { color: var(--ink-2); }
 .links { display: flex; flex-wrap: wrap; gap: 6px; }
 .links a, .links span { font: 500 12px var(--font-mono); padding: 4px 8px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); text-decoration: none; }
 .empty { padding: 32px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 10px; }
@@ -388,11 +392,12 @@ SCRIPT = r"""
     return '<span class="meter" role="img" aria-label="confidence ' + v.toFixed(2) + '">' + out + '</span>';
   }
   function scopeLabel(s) { return s === '**' ? 'any file' : s; }
-  function sourceLinks(r) {
-    return (r.sources || []).slice(0, 10).map(function (s) {
+  function quotes(r) {
+    return (r.sources || []).slice(0, 8).map(function (s) {
       var label = '#' + s.pr_number;
-      if (!s.url) return '<span>' + esc(label) + '</span>';
-      return '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>';
+      var link = s.url ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>' : esc(label);
+      return '<li><span class="q-meta">' + link + (s.created_at ? ' · ' + esc(s.created_at.slice(0, 10)) : '') + '</span>' +
+        (s.excerpt ? '<q>' + esc(s.excerpt) + '</q>' : '') + '</li>';
     }).join('');
   }
   function exampleHTML(ex) {
@@ -418,7 +423,7 @@ SCRIPT = r"""
       (r.examples || []).slice(0, 2).map(exampleHTML).join('') +
       (r.detect ? '<div><span class="label-sm">Detection pattern</span><code>' + esc(r.detect) + '</code></div>' : '') +
       ((r.seen_in || []).length ? '<div><span class="label-sm">Raised on</span>' + r.seen_in.map(function (p) { return '<code>' + esc(p) + '</code>'; }).join(', ') + '</div>' : '') +
-      '<div><span class="label-sm">Source reviews</span><div class="links">' + sourceLinks(r) + '</div></div>' +
+      '<div><span class="label-sm">What maintainers wrote</span><ul class="quotes">' + quotes(r) + '</ul></div>' +
       '<div><span class="label-sm">Rule ID</span><div class="cmd"><code id="id-' + esc(r.id) + '">' + esc(r.id) + '</code>' +
       '<button type="button" class="btn ghost" data-copy-target="id-' + esc(r.id) + '">Copy</button></div></div>' +
     '</div>';
@@ -686,7 +691,7 @@ def _bars(analysis: dict[str, Any]) -> str:
     rows = [
         ("Review feedback read", stats["feedback_total"], ""),
         ("Kept after filtering", stats["feedback_kept"], ""),
-        ("In a recurring pattern", clustered, ""),
+        ("Grouped with similar feedback", clustered, ""),
         ("Behind a proposed rule", behind, "strong"),
     ]
     out = ['<div class="bars">']
@@ -845,8 +850,8 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
     rules_panel = f"""
 <section role="tabpanel" id="panel-rules" aria-labelledby="tab-rules" hidden>
   <div class="panel-head"><div><h1>Proposed rules</h1>
-    <p>Open a rule to see its evidence, a real example and the reviews it came from.
-    Your decisions are saved in this browser.</p></div>
+    <p>Rules are proposed automatically, so read what maintainers actually wrote before you
+    approve one. Open a rule to see every source comment. Your decisions are saved in this browser.</p></div>
     <div class="row-actions" style="margin:0">
       <button type="button" class="btn" id="expand-all">Expand all</button>
       <button type="button" class="btn" id="approve-rest">Approve remaining</button>
@@ -876,9 +881,15 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
     <p class="hint-text" data-stat="command-hint"></p></div>
 </section>"""
 
-    aside_items = "".join(_aside(c) for c in others) or (
+    shown = sorted(others, key=lambda c: -c["evidence"]["comments"])[:40]
+    aside_items = "".join(_aside(c) for c in shown) or (
         '<div class="empty">Every recurring pattern became a rule.</div>'
     )
+    if len(others) > len(shown):
+        aside_items += (
+            f'<p class="hint-text">Showing the {len(shown)} largest of {len(others)} groups. '
+            "The full list is in <code>analysis.json</code>.</p>"
+        )
     aside_panel = f"""
 <section role="tabpanel" id="panel-aside" aria-labelledby="tab-aside" hidden>
   <div class="panel-head"><div><h1>Set aside</h1>
@@ -887,12 +898,20 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
   <div class="aside-list">{aside_items}</div>
 </section>"""
 
+    no_patterns = (
+        ""
+        if checkable
+        else '<p class="notice">None of these rules has a detection pattern, so this check '
+        "will not flag anything yet. Patterns are only created from fixes reviewers wrote in "
+        "GitHub suggestion blocks, so they never guess.</p>"
+    )
     check_panel = """
 <section role="tabpanel" id="panel-check" aria-labelledby="tab-check" hidden>
   <div class="panel-head"><div><h1>Check a diff</h1>
     <p>Paste the output of <code>git diff</code> to see which auto-checkable conventions it breaks.
     This runs the same check as <code>folklore check-diff</code> and the PR bot, in your browser.
     Rejected rules are skipped. An example diff is loaded to start.</p></div></div>
+  __NO_PATTERNS__
   <div class="checker">
     <div class="grid" style="gap:10px">
       <label class="label-sm" for="diff-input" style="margin:0">Unified diff</label>
@@ -904,7 +923,7 @@ def render_report(analysis: dict[str, Any], standalone: bool = True) -> str:
     </div>
     <div class="grid" style="gap:10px" id="diff-result" aria-live="polite"></div>
   </div>
-</section>"""
+</section>""".replace("__NO_PATTERNS__", no_patterns)
 
     skill_panel = f"""
 <section role="tabpanel" id="panel-skill" aria-labelledby="tab-skill" hidden>

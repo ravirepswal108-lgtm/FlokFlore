@@ -64,6 +64,7 @@ DIRECTIVE = re.compile(
 _SUGGESTION = re.compile(r"```suggestion[^\n]*\n(.*?)```", re.DOTALL)
 _CODE_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 _QUOTE = re.compile(r"^\s*>.*$", re.MULTILINE)
+_MD_LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
 _URL = re.compile(r"https?://\S+")
 _MENTION = re.compile(r"(?<![\w`])@[A-Za-z0-9-]+")
 _HTML = re.compile(r"<[^>]+>")
@@ -109,6 +110,7 @@ def extract_suggestion(body: str) -> str | None:
 def clean_text(body: str) -> str:
     """Review text with code, quotes, links, mentions and markup removed."""
     text = _SUGGESTION.sub(" ", body or "")
+    text = _MD_LINK.sub(r"\1", text)  # [label](url) -> label, before URLs are removed
     text = _CODE_BLOCK.sub(" ", text)
     text = _QUOTE.sub(" ", text)
     text = _URL.sub(" ", text)

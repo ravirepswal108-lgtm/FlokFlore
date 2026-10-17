@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .cluster import build_clusters
+from .cluster import build_clusters, evidence_for, evidence_problems
 from .config import Config
-from .distill import make_distiller, rank_members
+from .distill import _sources, document_frequency, make_distiller, rank_members, supporting_members
 from .embed import embedding_text, make_embedder
 from .filters import clean_text, filter_comments
 from .models import ReviewComment, Rule
@@ -35,6 +35,7 @@ def analyze(
     clusters = build_clusters(kept, vectors, cfg, now) if kept else []
 
     index = {c.id: i for i, c in enumerate(kept)}
+    df = document_frequency([clean_text(c.body) for c in kept])
     rules: list[Rule] = []
     rejected: list[dict[str, Any]] = []
     rejected_ids = set(cfg.rejected_rules)
@@ -48,6 +49,22 @@ def analyze(
             if cluster.status == "candidate":
                 cluster.status, cluster.reason = "discarded", "no clear rule could be phrased"
             continue
+        # Count only the comments that actually ask for this rule.
+        support = supporting_members(rule, members, df)
+        evidence = evidence_for(support, cfg, now) if support else None
+        problems = evidence_problems(evidence, cfg) if evidence else ["no comment asks for it"]
+        if problems:
+            cluster.status = "discarded"
+            cluster.reason = (
+                f"only {len(support)} of {len(members)} comments actually ask for "
+                f"'{rule.title.rstrip('.')}': " + "; ".join(problems)
+            )
+            continue
+        support_ids = {m.id for m in support}
+        rule.evidence = evidence
+        rule.sources = _sources(support)
+        rule.single_reviewer = evidence.reviewers == 1
+        rule.examples = [e for e in rule.examples if e.source_comment_id in support_ids]
         base_id, n = rule.id, 2
         while any(r.id == rule.id for r in rules):
             rule.id = f"{base_id}-{n}"
