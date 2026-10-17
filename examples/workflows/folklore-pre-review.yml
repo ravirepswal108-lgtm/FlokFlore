@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Folklore
-        uses: ravirepswal108-lgtm/FlokFlore@v0  # pin to a release tag or commit SHA
+        uses: ravirepswal108-lgtm/FlokFlore@main  # pin to a release tag or commit SHA once you make one
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           rules: skills/YOUR-REPO-folklore/assets/rules.json
